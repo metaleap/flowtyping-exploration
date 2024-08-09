@@ -59,6 +59,8 @@ func flattenTy(ty *Ty) *Ty {
 	return unwrap_trivial(flatten_ors(flatten_ands(ty)))
 }
 
+/* Type Atoms */
+
 type Atom interface{ isTypeAtom() }
 
 func (AtomPos) isTypeAtom()  {}
@@ -202,6 +204,8 @@ func atomNeg(it Atom) *AtomNeg {
 	return If(is, &ret, nil)
 }
 
+/* Disjunctive Normal Form */
+
 type DnfInter = []AtomStar
 type DnfForm = []DnfInter
 
@@ -279,3 +283,32 @@ func dnfStep(ty *Ty) *Ty {
 	}
 	return ty
 }
+
+func dnf(ty *Ty) DnfForm {
+	var step func(*Ty) *Ty
+	step = func(t *Ty) *Ty {
+		switch t.Tag {
+		case TyAny, TyInt, TyNever:
+			return t
+		case TyTuple:
+			return dnfStep(&Ty{Tag: TyTuple, Of: listMap(t.Of, step)})
+		case TyNot:
+			return dnfStep(&Ty{Tag: TyNot, Of: Tys{step(t.Of[0])}})
+		case TyAnd:
+			return dnfStep(&Ty{Tag: TyAnd, Of: listMap(t.Of, step)})
+		case TyOr:
+			return dnfStep(&Ty{Tag: TyOr, Of: listMap(t.Of, step)})
+		}
+		panic("impossible")
+	}
+	var fix func(lastTy *Ty, ty *Ty) *Ty
+	fix = func(lastTy *Ty, ty *Ty) *Ty {
+		if lastTy != nil && lastTy == ty {
+			return ty
+		}
+		return fix(ty, flattenTy(step(ty)))
+	}
+	return dnfOfTy(fix(nil, flattenTy(ty)))
+}
+
+/* Conjuct Canonicalization */
