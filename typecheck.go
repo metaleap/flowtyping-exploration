@@ -202,12 +202,15 @@ func atomNeg(it Atom) *AtomNeg {
 	return If(is, &ret, nil)
 }
 
-func dnfOfTy(ty *Ty) [][]AtomStar {
-	dnf_inter := func(ty *Ty) []AtomStar {
+type DnfInter = []AtomStar
+type DnfForm = []DnfInter
+
+func dnfOfTy(ty *Ty) DnfForm {
+	dnf_inter := func(ty *Ty) DnfInter {
 		switch ty.Tag {
 		case TyAnd:
 			atoms := listMap(ty.Of, atomOfTy)
-			ret := make([]AtomStar, len(atoms))
+			ret := make(DnfInter, len(atoms))
 			for i, atom := range atoms {
 				ret[i] = AtomStar{Pos: atomPos(atom), Neg: atomNeg(atom)}
 			}
@@ -215,12 +218,12 @@ func dnfOfTy(ty *Ty) [][]AtomStar {
 			panic("not_dnf")
 		case TyNot, TyTuple, TyAny, TyNever, TyInt:
 			atom := atomOfTy(ty)
-			return []AtomStar{{Pos: atomPos(atom), Neg: atomNeg(atom)}}
+			return DnfInter{{Pos: atomPos(atom), Neg: atomNeg(atom)}}
 		}
 		panic("impossible")
 	}
-	var dnf_form func(ty *Ty) [][]AtomStar
-	dnf_form = func(ty *Ty) [][]AtomStar {
+	var dnf_form func(ty *Ty) DnfForm
+	dnf_form = func(ty *Ty) DnfForm {
 		switch ty.Tag {
 		case TyOr:
 			return listMap(ty.Of, dnf_inter)
@@ -232,4 +235,11 @@ func dnfOfTy(ty *Ty) [][]AtomStar {
 		panic("impossible")
 	}
 	return dnf_form(ty)
+}
+
+func tyOfDnf(inters DnfForm) *Ty {
+	tys := listMap(inters, func(atoms DnfInter) *Ty {
+		return &Ty{Tag: TyAnd, Of: listMap(atoms, func(it AtomStar) *Ty { return tyOfAtom(it) })}
+	})
+	return flattenTy(&Ty{Tag: TyOr, Of: tys})
 }
