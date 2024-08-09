@@ -193,9 +193,43 @@ func splitAt(sep *Ty, list Tys) (Tys, Tys) {
 	return walk(nil, list)
 }
 
-func dnfOfTy(ty *Ty) {
-	dnf_inter := func(ty *Ty) {
+func atomPos(it Atom) *AtomPos {
+	ret, is := it.(AtomPos)
+	return If(is, &ret, nil)
+}
+func atomNeg(it Atom) *AtomNeg {
+	ret, is := it.(AtomNeg)
+	return If(is, &ret, nil)
+}
 
+func dnfOfTy(ty *Ty) [][]AtomStar {
+	dnf_inter := func(ty *Ty) []AtomStar {
+		switch ty.Tag {
+		case TyAnd:
+			atoms := listMap(ty.Of, atomOfTy)
+			ret := make([]AtomStar, len(atoms))
+			for i, atom := range atoms {
+				ret[i] = AtomStar{Pos: atomPos(atom), Neg: atomNeg(atom)}
+			}
+		case TyOr:
+			panic("not_dnf")
+		case TyNot, TyTuple, TyAny, TyNever, TyInt:
+			atom := atomOfTy(ty)
+			return []AtomStar{{Pos: atomPos(atom), Neg: atomNeg(atom)}}
+		}
+		panic("impossible")
 	}
-	_ = dnf_inter // TODO: cont. here
+	var dnf_form func(ty *Ty) [][]AtomStar
+	dnf_form = func(ty *Ty) [][]AtomStar {
+		switch ty.Tag {
+		case TyOr:
+			return listMap(ty.Of, dnf_inter)
+		case TyAnd:
+			return dnf_form(&Ty{Tag: TyOr, Of: Tys{ty}})
+		case TyNot, TyTuple, TyAny, TyNever, TyInt:
+			return dnf_form(&Ty{Tag: TyAnd, Of: Tys{ty}})
+		}
+		panic("impossible")
+	}
+	return dnf_form(ty)
 }
