@@ -243,3 +243,39 @@ func tyOfDnf(inters DnfForm) *Ty {
 	})
 	return flattenTy(&Ty{Tag: TyOr, Of: tys})
 }
+
+func dnfStep(ty *Ty) *Ty {
+	switch {
+	case ty.Tag == TyNot && ty.Of[0].Tag == TyNot:
+		return ty.Of[0].Of[0]
+	case ty.Tag == TyNot && ty.Of[0].Tag == TyOr:
+		return &Ty{Tag: TyAnd, Of: listMap(ty.Of[0].Of, func(t *Ty) *Ty { return &Ty{Tag: TyNot, Of: Tys{t}} })}
+	case ty.Tag == TyNot && ty.Of[0].Tag == TyAnd:
+		return &Ty{Tag: TyOr, Of: listMap(ty.Of[0].Of, func(t *Ty) *Ty { return &Ty{Tag: TyNot, Of: Tys{t}} })}
+	case ty.Tag == TyAnd && ty.Of.setExists(func(t *Ty) bool { return t.Tag == TyOr }):
+		// Factor unions out of intersections
+		factor_out := ty.Of.setFindFirst(func(t *Ty) bool { return t.Tag == TyOr })
+		rest_inters := ty.Of.setRemove(factor_out)
+		return &Ty{Tag: TyOr, Of: listMap(factor_out.Of, func(s_i *Ty) *Ty { return &Ty{Tag: TyOr, Of: rest_inters.setAdd(s_i)} })}
+	case ty.Tag == TyTuple && ty.Of.setExists(func(t *Ty) bool { return t.Tag == TyOr }):
+		// Factor unions out of tuples
+		factor_out := listFind(ty.Of, func(t *Ty) bool { return t.Tag == TyOr })
+		before, after := splitAt(factor_out, ty.Of)
+		return &Ty{Tag: TyOr, Of: listMap(factor_out.Of, func(t_i *Ty) *Ty { return &Ty{Tag: TyTuple, Of: append(before, append(Tys{t_i}, after...)...)} })}
+	case ty.Tag == TyTuple && ty.Of.setExists(func(t *Ty) bool { return t.Tag == TyAnd }):
+		// Factor intersections out of tuples
+		factor_out := listFind(ty.Of, func(t *Ty) bool { return t.Tag == TyAnd })
+		before, after := splitAt(factor_out, ty.Of)
+		return &Ty{Tag: TyAnd, Of: listMap(factor_out.Of, func(t_i *Ty) *Ty { return &Ty{Tag: TyTuple, Of: append(before, append(Tys{t_i}, after...)...)} })}
+	case ty.Tag == TyTuple && ty.Of.setExists(func(t *Ty) bool { return t.Tag == TyNot }):
+		// Factor negations out of tuples
+		factor_out := listFind(ty.Of, func(t *Ty) bool { return t.Tag == TyNot })
+		before, after := splitAt(factor_out, ty.Of)
+		t := factor_out.Of[0]
+		return &Ty{Tag: TyAnd, Of: Tys{
+			&Ty{Tag: TyTuple, Of: append(before, append(Tys{{Tag: TyAny}}, after...)...)},
+			&Ty{Tag: TyNot, Of: Tys{{Tag: TyTuple, Of: append(before, append(Tys{t}, after...)...)}}},
+		}}
+	}
+	return ty
+}

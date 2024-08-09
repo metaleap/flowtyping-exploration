@@ -32,6 +32,15 @@ func listExists2[T any](list1 []T, list2 []T, f func(T, T) bool) bool {
 	return false
 }
 
+func listFind[T any](list []T, pred func(T) bool) (ret T) {
+	for _, item := range list {
+		if pred(item) {
+			return item
+		}
+	}
+	return
+}
+
 func listMap[TIn any, TOut any](list []TIn, f func(TIn) TOut) (ret []TOut) {
 	ret = make([]TOut, len(list))
 	for i, item := range list {
