@@ -82,17 +82,3 @@ func shouldWrapTy(tyChild, tyParent *Ty) bool {
 	}
 	return prec[tyChild.Tag] < prec[tyParent.Tag]
 }
-
-func (me *Ty) eq(to *Ty) bool {
-	if me == to {
-		return true
-	} else if me.Tag == to.Tag && len(me.Of) == len(to.Of) {
-		for i, t := range me.Of {
-			if !t.eq(to.Of[i]) {
-				return false
-			}
-		}
-		return true
-	}
-	return false
-}

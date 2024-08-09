@@ -9,7 +9,7 @@ func If[T any](b bool, t T, f T) T {
 	return f
 }
 
-func listAll[T any](list1 []T, list2 []T, f func(T, T) bool) bool {
+func listForAll2[T any](list1 []T, list2 []T, f func(T, T) bool) bool {
 	if len(list1) == len(list2) {
 		for i, item := range list1 {
 			if !f(item, list2[i]) {
@@ -17,6 +17,17 @@ func listAll[T any](list1 []T, list2 []T, f func(T, T) bool) bool {
 			}
 		}
 		return true
+	}
+	return false
+}
+
+func listExists2[T any](list1 []T, list2 []T, f func(T, T) bool) bool {
+	if len(list1) == len(list2) {
+		for i, item := range list1 {
+			if f(item, list2[i]) {
+				return true
+			}
+		}
 	}
 	return false
 }
@@ -29,11 +40,28 @@ func listMap[TIn any, TOut any](list []TIn, f func(TIn) TOut) (ret []TOut) {
 	return
 }
 
+// caller assures same len for both lists
+func listMap2[TIn any, TOut any](list1 []TIn, list2 []TIn, f func(TIn, TIn) TOut) (ret []TOut) {
+	ret = make([]TOut, len(list1))
+	for i, item := range list1 {
+		ret[i] = f(item, list2[i])
+	}
+	return
+}
+
 func listFold[TListItem any, TAccum any](list []TListItem, accum TAccum, f func(TListItem, TAccum) TAccum) TAccum {
 	for _, t := range list {
 		accum = f(t, accum)
 	}
 	return accum
+}
+
+func listRev[T any](list []T) []T {
+	ret := make([]T, len(list))
+	for i, item := range list {
+		ret[len(ret)-(1+i)] = item
+	}
+	return ret
 }
 
 type Tys []*Ty
@@ -79,4 +107,38 @@ func (me Tys) setUnion(with ...*Ty) Tys {
 		}
 	}
 	return me
+}
+
+func atomEq(a1 Atom, a2 Atom) bool {
+	p1, isp1 := a1.(AtomPos)
+	p2, isp2 := a2.(AtomPos)
+	if isp1 && isp2 && p1.Kind == p2.Kind && listForAll2(p1.IfTuple, p2.IfTuple, func(tp1 AtomPos, tp2 AtomPos) bool { return atomEq(tp1, tp2) }) {
+		return true
+	}
+	n1, isn1 := a1.(AtomNeg)
+	n2, isn2 := a2.(AtomNeg)
+	if isn1 && isn2 {
+		return atomEq(n1.Not, n2.Not)
+	}
+	s1, iss1 := a1.(AtomStar)
+	s2, iss2 := a2.(AtomStar)
+	if iss1 && iss2 {
+		return (s1.Neg != nil && s2.Neg != nil && atomEq(s1.Neg, s2.Neg)) ||
+			(s1.Pos != nil && s2.Pos != nil && atomEq(s1.Pos, s2.Pos))
+	}
+	panic("unreachable")
+}
+
+func (me *Ty) eq(to *Ty) bool {
+	if me == to {
+		return true
+	} else if me.Tag == to.Tag && len(me.Of) == len(to.Of) {
+		for i, t := range me.Of {
+			if !t.eq(to.Of[i]) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }

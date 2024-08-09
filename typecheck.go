@@ -134,12 +134,12 @@ func tyOfAtom(atom Atom) *Ty {
 }
 
 func atomSub(s Atom, t Atom) bool {
-	if s == t {
+	if atomEq(s, t) {
 		return true
 	} else if t_pos, t_is := t.(AtomPos); t_is && t_pos.Kind == TyAny {
 		return true
 	} else if s_pos, s_is := s.(AtomPos); s_is && t_is && s_pos.Kind == TyTuple && t_pos.Kind == TyTuple {
-		return listAll(s_pos.IfTuple, t_pos.IfTuple, func(a1 AtomPos, a2 AtomPos) bool {
+		return listForAll2(s_pos.IfTuple, t_pos.IfTuple, func(a1 AtomPos, a2 AtomPos) bool {
 			return atomSub(a1, a2)
 		})
 	}
@@ -147,3 +147,55 @@ func atomSub(s Atom, t Atom) bool {
 }
 func atomSup(s Atom, t Atom) bool    { return atomSub(t, s) }
 func atomSupNot(s Atom, t Atom) bool { return !atomSup(s, t) }
+
+func atomInter(t1 AtomPos, t2 AtomPos) AtomInter {
+	switch {
+	case atomEq(t1, t2):
+		return AtomInter{Pos: &t1}
+	case t1.Kind == TyAny:
+		return AtomInter{Pos: &t2}
+	case t2.Kind == TyAny:
+		return AtomInter{Pos: &t1}
+	case (t1.Kind == TyInt && t2.Kind == TyTuple) || (t1.Kind == TyTuple && t2.Kind == TyInt):
+		return AtomInter{Pos: nil} // never
+	case t1.Kind == TyTuple && t2.Kind == TyTuple:
+		if len(t1.IfTuple) != len(t2.IfTuple) || listExists2(t1.IfTuple, t2.IfTuple, func(ti AtomPos, si AtomPos) bool {
+			return atomInter(ti, si).Pos == nil // == never
+		}) {
+			return AtomInter{Pos: nil} // never
+		} else {
+			return AtomInter{Pos: &AtomPos{
+				Kind: TyTuple,
+				IfTuple: listMap2(t1.IfTuple, t2.IfTuple, func(ti AtomPos, si AtomPos) AtomPos {
+					inter := atomInter(ti, si)
+					if inter.Pos == nil {
+						panic("impossible")
+					}
+					return *inter.Pos
+				}),
+			}}
+		}
+	}
+	panic("unreachable")
+}
+
+func splitAt(sep *Ty, list Tys) (Tys, Tys) {
+	var walk func(Tys, Tys) (Tys, Tys)
+	walk = func(before Tys, list Tys) (Tys, Tys) {
+		if len(list) == 0 {
+			panic("splitting element not found")
+		}
+		if list[0].eq(sep) {
+			return listRev(before), list[1:]
+		}
+		return walk(append(Tys{list[0]}, before...), list[1:])
+	}
+	return walk(nil, list)
+}
+
+func dnfOfTy(ty *Ty) {
+	dnf_inter := func(ty *Ty) {
+
+	}
+	_ = dnf_inter // TODO: cont. here
+}
