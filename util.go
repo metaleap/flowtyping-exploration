@@ -1,5 +1,26 @@
 package ft
 
+var tyNever = &Ty{Tag: TyNever}
+
+func If[T any](b bool, t T, f T) T {
+	if b {
+		return t
+	}
+	return f
+}
+
+func listAll[T any](list1 []T, list2 []T, f func(T, T) bool) bool {
+	if len(list1) == len(list2) {
+		for i, item := range list1 {
+			if !f(item, list2[i]) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
 func listMap[TIn any, TOut any](list []TIn, f func(TIn) TOut) (ret []TOut) {
 	ret = make([]TOut, len(list))
 	for i, item := range list {
