@@ -6,19 +6,19 @@ var tVarCount int
 
 const (
 	_ TyTag = iota
-	Any
-	Never
-	Int
-	Tuple
-	Not
-	And
-	Or
+	TyAny
+	TyNever
+	TyInt
+	TyTuple
+	TyNot
+	TyAnd
+	TyOr
 	// Infer: any that's < 0
 )
 
 type Ty struct {
 	Tag TyTag // if < 0, is inference variable
-	Of  []*Ty // for Tuple,Not,And,Or
+	Of  Tys   // for Tuple,Not,And,Or
 }
 
 type Param struct {
@@ -49,9 +49,9 @@ type termValApp struct {
 }
 type termValDec struct {
 	Name   string
-	Params []*Param
+	Params []Param
 	Body   Term
-	In     Term
+	Cont   Term
 }
 type termValIf struct {
 	Var  string
@@ -69,21 +69,30 @@ func freshInferTy() *Ty {
 	return &Ty{Tag: TyTag(tVarCount)}
 }
 
+var prec = map[TyTag]int{
+	TyOr:  1,
+	TyAnd: 2,
+	TyNot: 3,
+}
+
 func shouldWrapTy(tyChild, tyParent *Ty) bool {
-	prec := func(ty *Ty) int {
-		switch ty.Tag {
-		case Or:
-			return 1
-		case And:
-			return 2
-		case Not:
-			return 3
-		}
-		panic("unreachable")
-	}
-	if tyChild.Tag == Any || tyChild.Tag == Never || tyChild.Tag == Int || tyChild.Tag == Tuple || tyChild.Tag < 0 ||
-		tyParent.Tag == Any || tyParent.Tag == Never || tyParent.Tag == Int || tyParent.Tag == Tuple || tyParent.Tag < 0 {
+	if tyChild.Tag == TyAny || tyChild.Tag == TyNever || tyChild.Tag == TyInt || tyChild.Tag == TyTuple || tyChild.Tag < 0 ||
+		tyParent.Tag == TyAny || tyParent.Tag == TyNever || tyParent.Tag == TyInt || tyParent.Tag == TyTuple || tyParent.Tag < 0 {
 		return false
 	}
-	return prec(tyChild) < prec(tyParent)
+	return prec[tyChild.Tag] < prec[tyParent.Tag]
+}
+
+func (me *Ty) eq(to *Ty) bool {
+	if me == to {
+		return true
+	} else if me.Tag == to.Tag && len(me.Of) == len(to.Of) {
+		for i, t := range me.Of {
+			if !t.eq(to.Of[i]) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
