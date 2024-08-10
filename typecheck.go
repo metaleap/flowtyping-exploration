@@ -312,3 +312,45 @@ func dnf(ty *Ty) DnfForm {
 }
 
 /* Conjuct Canonicalization */
+
+type PosAtomSet = []AtomPos
+
+type CanonicalConjuct struct {
+	Add AtomPos
+	Sub PosAtomSet
+}
+
+func assertCanonicalConjuct(it *CanonicalConjuct) {
+	if it != nil {
+		for _, tk := range it.Sub {
+			assert((!atomEq(it.Add, tk)) && atomSup(it.Add, tk))
+		}
+		for i, tk := range it.Sub {
+			for j, tm := range it.Sub {
+				if i != j {
+					assert(atomSupNot(tk, tm))
+				}
+			}
+		}
+	}
+}
+
+// func andThenNone(it *CanonicalConjuct, pred any) {
+
+// }
+
+func can(atoms DnfInter) *CanonicalConjuct {
+	pos := listFilter(atoms, func(atom AtomStar) bool { return atom.Pos != nil })
+	neg := listFilter(atoms, func(atom AtomStar) bool { return atom.Neg != nil })
+
+	rule2 := func(AtomInter, DnfInter) AtomInter { return AtomInter{} }
+
+	rule3456 := func(*AtomPos, DnfInter) *CanonicalConjuct { return nil }
+
+	var conj *CanonicalConjuct
+	if add := rule2(AtomInter{Pos: &AtomPos{Kind: TyAny}}, pos).Pos; add != nil {
+		conj = rule3456(add, neg)
+	}
+	assertCanonicalConjuct(conj)
+	return conj
+}

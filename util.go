@@ -2,6 +2,12 @@ package ft
 
 var tyNever = &Ty{Tag: TyNever}
 
+func assert(b bool) {
+	if !b {
+		panic("assertion failure")
+	}
+}
+
 func If[T any](b bool, t T, f T) T {
 	if b {
 		return t
@@ -56,6 +62,16 @@ func listMap2[TIn any, TOut any](list1 []TIn, list2 []TIn, f func(TIn, TIn) TOut
 		ret[i] = f(item, list2[i])
 	}
 	return
+}
+
+func listFilter[T any](list []T, pred func(T) bool) []T {
+	ret := make([]T, 0, len(list))
+	for _, item := range list {
+		if pred(item) {
+			ret = append(ret, item)
+		}
+	}
+	return ret
 }
 
 func listFold[TListItem any, TAccum any](list []TListItem, accum TAccum, f func(TListItem, TAccum) TAccum) TAccum {
