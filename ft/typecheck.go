@@ -316,12 +316,13 @@ func dnf(ty *Ty) DnfForm {
 type PosAtomSet = []AtomPos
 
 type CanonicalConjuct struct {
-	Add AtomPos
-	Sub PosAtomSet
+	Never bool
+	Add   AtomPos
+	Sub   PosAtomSet
 }
 
-func assertCanonicalConjuct(it *CanonicalConjuct) {
-	if it != nil {
+func assertCanonicalConjuct(it CanonicalConjuct) {
+	if !it.Never {
 		for _, tk := range it.Sub {
 			assert((!atomEq(it.Add, tk)) && atomSup(it.Add, tk))
 		}
@@ -339,18 +340,34 @@ func assertCanonicalConjuct(it *CanonicalConjuct) {
 
 // }
 
-func can(atoms DnfInter) *CanonicalConjuct {
-	pos := listFilter(atoms, func(atom AtomStar) bool { return atom.Pos != nil })
-	neg := listFilter(atoms, func(atom AtomStar) bool { return atom.Neg != nil })
+func can( /*atoms*/ DnfInter) CanonicalConjuct {
+	// pos := listFilter(atoms, func(atom AtomStar) bool { return atom.Pos != nil })
+	// neg := listFilter(atoms, func(atom AtomStar) bool { return atom.Neg != nil })
 
-	rule2 := func(AtomInter, DnfInter) AtomInter { return AtomInter{} }
+	// rule2 := func(AtomInter, DnfInter) AtomInter { return AtomInter{} }
 
-	rule3456 := func(*AtomPos, DnfInter) *CanonicalConjuct { return nil }
+	// rule3456 := func(add AtomPos, sub DnfInter) CanonicalConjuct {
+	// 	tmp := rule3(add, sub)
+	// 	if tmp == nil {
+	// 		tmp = rule4(add, sub)
+	// 	}
+	// 	if tmp == nil {
+	// 		tmp = rule5(add, sub)
+	// 	}
+	// 	if tmp == nil {
+	// 		tmp = rule6(add, sub)
+	// 	}
+	// 	if tmp == nil {
+	// 		return CanonicalConjuct{Add: add, Sub: sub}
+	// 	}
 
-	var conj *CanonicalConjuct
-	if add := rule2(AtomInter{Pos: &AtomPos{Kind: TyAny}}, pos).Pos; add != nil {
-		conj = rule3456(add, neg)
-	}
-	assertCanonicalConjuct(conj)
-	return conj
+	// }
+
+	// conj := CanonicalConjuct{Never: true}
+	// if add := rule2(AtomInter{Pos: &AtomPos{Kind: TyAny}}, pos).Pos; add != nil {
+	// 	conj = rule3456(*add, neg)
+	// }
+	// assertCanonicalConjuct(conj)
+	// return conj
+	return CanonicalConjuct{}
 }
